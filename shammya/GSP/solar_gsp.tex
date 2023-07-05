@@ -1,0 +1,57 @@
+% This file was created by matlab2tikz.
+%
+%The latest updates can be retrieved from
+%  http://www.mathworks.com/matlabcentral/fileexchange/22022-matlab2tikz-matlab2tikz
+%where you can also make suggestions and rate matlab2tikz.
+%
+\definecolor{mycolor1}{rgb}{0.00000,0.44700,0.74100}%
+\definecolor{mycolor2}{rgb}{0.85000,0.32500,0.09800}%
+%
+\begin{tikzpicture}
+
+\begin{axis}[%
+width=4.521in,
+height=3.566in,
+at={(0.758in,0.481in)},
+scale only axis,
+xmin=0,
+xmax=100,
+separate axis lines,
+every outer y axis line/.append style={mycolor2},
+every y tick label/.append style={font=\color{mycolor2}},
+every y tick/.append style={mycolor2},
+ymin=0,
+ymax=0.12,
+axis background/.style={fill=white},
+yticklabel pos=right
+]
+\addplot [color=mycolor1, forget plot]
+  table[row sep=crcr]{%
+0	0.00234847149208177\\
+10	0.00201909660342974\\
+20	0.00154766582923685\\
+30	0.00127461580654479\\
+40	0.00101172848616158\\
+50	0.00108903701209795\\
+60	0.000793204044101962\\
+70	0.00128578327946067\\
+80	0.00158683114756068\\
+90	0.00175911660681473\\
+100	0.00169468876763116\\
+};
+\addplot [color=mycolor2, forget plot]
+  table[row sep=crcr]{%
+0	0.0165615479323156\\
+10	0.0309484075397937\\
+20	0.0461435249775574\\
+30	0.057247898717848\\
+40	0.0684666617366142\\
+50	0.0775390139171441\\
+60	0.0839716254585992\\
+70	0.098026972500479\\
+80	0.100812758180032\\
+90	0.109220166318454\\
+100	0.113701479153794\\
+};
+\end{axis}
+\end{tikzpicture}%

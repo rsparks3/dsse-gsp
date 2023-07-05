@@ -1,0 +1,71 @@
+% This file was created by matlab2tikz.
+%
+%The latest updates can be retrieved from
+%  http://www.mathworks.com/matlabcentral/fileexchange/22022-matlab2tikz-matlab2tikz
+%where you can also make suggestions and rate matlab2tikz.
+%
+\definecolor{mycolor1}{rgb}{0.00000,0.44700,0.74100}%
+\definecolor{mycolor2}{rgb}{0.85000,0.32500,0.09800}%
+%
+\begin{tikzpicture}
+
+\begin{axis}[%
+width=4.521in,
+height=3.566in,
+at={(0.758in,0.481in)},
+scale only axis,
+xmin=1,
+xmax=10,
+ymin=0,
+ymax=0.01,
+axis background/.style={fill=white},
+legend style={legend cell align=left, align=left, draw=white!15!black}
+]
+\addplot [color=mycolor1, line width=2.0pt]
+  table[row sep=crcr]{%
+1	0.00116763645450451\\
+2	0.00127526982545179\\
+3	0.00107149618614604\\
+4	0.00102807152463486\\
+5	0.000910587891802215\\
+6	0.00105521350949787\\
+7	0.00104950469514445\\
+8	0.0010062545506159\\
+9	0.00104352068605251\\
+10	0.00116799280463344\\
+};
+\addlegendentry{voltage}
+
+\addplot [color=mycolor2, line width=2.0pt]
+  table[row sep=crcr]{%
+1	0.00905310968387012\\
+2	0.00879284992512526\\
+3	0.00832330389089493\\
+4	0.00948021485621475\\
+5	0.00927151179848\\
+6	0.0087124385741835\\
+7	0.00930425531550291\\
+8	0.0085779818619015\\
+9	0.00810178794661433\\
+10	0.00886487529053595\\
+};
+\addlegendentry{angle}
+
+\end{axis}
+
+\begin{axis}[%
+width=5.833in,
+height=4.375in,
+at={(0in,0in)},
+scale only axis,
+xmin=0,
+xmax=1,
+ymin=0,
+ymax=1,
+axis line style={draw=none},
+ticks=none,
+axis x line*=bottom,
+axis y line*=left
+]
+\end{axis}
+\end{tikzpicture}%
