@@ -1,9 +1,14 @@
 clc;
 clear all;
 close all;
+% Adjustable Variables
+ncluster = 1;
 eigenvectors_reduction = 80;
-sensors_per_cluster = 40;
+sensors_per_cluster = 20;
 BusSize = 34;
+
+
+% not adjustable variables
 ADD_LOAD = 00;
 [DSSCircObj, DSSText, gridpvPath] = DSSStartup;
 DSSCircuit = DSSCircObj.ActiveCircuit;
@@ -15,6 +20,9 @@ DSSText.Command = 'vsource.source.enabled=no';
 DSSText.command = 'batchedit load..* enabled=no';
 DSSText.Command = 'solve';
 
+
+
+
 base_y = DSSCircuit.SystemY;
 Ymatrix=reshape(base_y,[length(DSSCircuit.AllNodeNames)*2,length(DSSCircuit.AllNodeNames)]); % "2" is because the real/imaginary parts are separate
 Ymatrix=Ymatrix';
@@ -23,10 +31,10 @@ Y_dss = Ymatrix(:,1:2:end) + 1i*Ymatrix(:,2:2:end);
 ynode_order = DSSCircuit.YNodeOrder;
 [sorted_y_node,sort_index] =  sort(ynode_order);
  
-sorted_y_dss= Y_dss(sort_index,:);
+sorted_y_dss = Y_dss(sort_index,:);
 sorted_y_dss = sorted_y_dss(:,sort_index);
-
 bus_names = cell(size(sorted_y_node));
+
 for j = 1:length(sorted_y_node)
     name = split(sorted_y_node(j),'.');
     bus_names{j} = name{1};
@@ -39,9 +47,6 @@ for i = 1:length(unique_bus_names)
     bus_name_loc(unique_bus_names{i})=find(strcmpi(bus_names,unique_bus_names{i}));
 end
 
-
-
-%%
 % Recompile the model to get a valid power flow
 DSSText.command = file_directory;
 DSSText.Command = 'solve';
@@ -86,78 +91,9 @@ for i = 1:length(unique_bus_names)
 end
 %%
 number_of_eigenvectors = length(Y_DD)-eigenvectors_reduction;
-% vcomplex = full_voltage_magnitude;
 U_k_gft = U_Y_new (:,1:number_of_eigenvectors) ;
 [U_k,~,~] = gram_schemidt(U_k_gft);
-% [U_k,~,~] = svd(U_Y_new);
-% U_k = U_k (:,1:number_of_eigenvectors) ;
-% U_k = U_k_gft;
 v_new = U_k*(U_k)'*sorted_vcomplex;
-% v_new = U_k_gft*transpose(U_k_gft)*sorted_vcomplex;
-figure(3)
-% subplot(311)
-% loc = find(abs(full_voltage_magnitude(loc))>0);
-subplot(211)
-plot(abs(v_new),'linewidth',1.5)
-hold on
-plot(abs(sorted_vcomplex),'linewidth',1.5)
-legend('Interpolated','Original')
-subplot(212)
-plot(angle(v_new),'linewidth',1.5)
-hold on
-plot(angle(sorted_vcomplex),'linewidth',1.5)
-legend('Interpolated','Original')
-
-
-
-
-%% Sensor placement
-
-% Yuk = sorted_y_dss * U_Y_new;
-% Yuk = Yuk(:,1:number_of_eigenvectors);
-% M_s = [];
-% M= 52;
-% M_tilde = M-length(M_s); % total number to be found
-% [N,~]=size(U_k);
-% i=1;
-% j_tilde = 1:length(sorted_y_dss);
-% j_tilde(M_s)=[];
-% while i <= M_tilde
-%     sigma_min_uk=zeros(length(j_tilde),1);
-%     sigma_min_yuk=zeros(length(j_tilde),1);
-%     for j=1: length(j_tilde)
-%         A = U_k([M_s;j_tilde(j)],:);
-%         [~,sigma_min_uk(j),~,flag] = svds(A,1,'smallest');
-%         if(flag)
-%             continue;
-%         end
-%         B = Yuk([M_s;j_tilde(j)],:);
-%         [~,sigma_min_yuk(j),~,flag] = svds(B,1,'smallest');
-%         if(flag)
-%             continue;
-%         end
-%     end
-% %         [~,min_ind]=max(abs(sigma_min_uk)+abs(sigma_min_yuk));
-%     [~,min_ind]= max(min([sigma_min_uk sigma_min_yuk],[],2));
-%     M_s = [M_s;j_tilde(min_ind)];
-%     j_tilde(min_ind)=[];
-%     i=i+1;
-% end
-% P_S = eye(N);
-% P_S=P_S(:,M_s');
-%
-% bus_name_sensor = unique(bus_names(M_s));
-%
-% sensor_locations = zeros(length(bus_names),1);
-%
-% for i = 1:length(bus_name_sensor)
-%     x = find(strcmp(bus_names,bus_name_sensor(i)));
-%     sensor_locations(x,1)=1;
-% end
-
-
-%% Sensor placement Bus Wise
-
 
 
 %% Construct the graph for node relabeling
@@ -230,29 +166,14 @@ to_bus_nodes(remove_list) = [];
 G_old = graph(from_bus_nodes,to_bus_nodes);
 
 
-
-
-%%
-% node_ordering_opendss = DSSCircuit.YNodeOrder;
-% node_ordering_opendss_names = cell(size(node_ordering_opendss));
 G = digraph(fnew,tnew);
 
 
 
-
-
-
-
-
-
-% for i = 1:length(node_ordering_opendss)
-%     name= split(node_ordering_opendss(i),'.');
-%     node_ordering_opendss_names{i} = name{1};
-% end
-% opendss_bus_names = DSSCircuit.AllBusNames;
 testkeys = keys(inner_map);
 
 edge_weights = [];
+
 %% Clustering of nodes
 for i = 1:length(fnew)
     f = fnew(i); t = tnew(i);
@@ -286,14 +207,16 @@ adjacency_matrix = adjacency(G_weighted,'weighted');
 laplacian_matrix_sym = speye(G_weighted.numnodes,G_weighted.numnodes) - (degree_matrix)^(-0.5)*adjacency_matrix*(degree_matrix)^(-0.5);
 Q_sym = full(laplacian_matrix_sym);
 nb = G_weighted.numnodes;
-ncluster = 1;
+
+
 
 [Q_L_sym_whole, ~]=eigs(Q_sym, ncluster,'smallestabs');
 Q_L_sym = Q_L_sym_whole;
 % ammeter_locations = [];
 % sensor_locations = [];
 for i = 1:nb
-    Q_L_sym(i,:) =  Q_L_sym(i,:) / sqrt(sum(Q_L_sym(i,:).*Q_L_sym(i,:)));
+    Q_L_sym(i,:) =  Q_L_sym(i,:);
+    G.Nodes.NodeColors = indegree(G) / sqrt(sum(Q_L_sym(i,:).*Q_L_sym(i,:)));
 end
 [Q_L_sym_idx, ~] = kmeans(Q_L_sym,ncluster);
 
@@ -304,7 +227,7 @@ for i=1:length(Q_L_sym_idx)
 end
 G= digraph(fnew,tnew,edge_weights);
 figure(7)
-subplot(121)
+subplot(111)
 h = plot(G);
 title('Normalized Laplacian and Weighted adjacency matrix')
 C = {'k','b','r','g','y',[.5 .6 .7],[.8 .2 .6],'m',[.8 .2 .9],[.1 .4 .7]}; % Cell array of colors.
@@ -313,6 +236,7 @@ Yuk = Yuk(:,1:number_of_eigenvectors);
 M_ss = [];
 M_s_y_s = [];
 for ii = 1:ncluster
+    fprintf("%d\r\n",ii)
     nodes = find(Q_L_sym_idx == ii);
     original_node_map = rmap(nodes);
     sensor_unique_bus_names = cell(length(original_node_map),1);
@@ -347,7 +271,7 @@ for ii = 1:ncluster
         end
         [~,min_ind]= max(min([sigma_min_uk sigma_min_yuk],[],2));
         M_s = [M_s;original_node_map(min_ind)];
-        
+
         i=i+1;
     end
     %     P_S = eye(N);
@@ -359,7 +283,8 @@ for ii = 1:ncluster
     end
     M_ss = [M_ss; M_s];
     M_s_y_s = [M_s_y_s M_s_y];
-    highlight(h,nodes,'NodeColor',C{ii},'MarkerSize',6);
+    highlight(h,nodes,'NodeColor',C{ii},'MarkerSize',6);%
+    
 end
 bus_name_sensor = unique_bus_names(M_ss);
 total_sensors = length(M_ss);
@@ -371,10 +296,8 @@ for i = 1:length(graph_highlight)
 end
 
 
-
-
-
 %%
+figure(8)
 nb = length(sorted_y_dss);
 % number_of_sensors = sum(sensor_locations);
 % sensor_locations= find(sensor_locations==1);
@@ -384,10 +307,17 @@ M =zeros(number_of_sensors,nb);
 for r = 1:length(sensor_locations)
     M (r,sensor_locations(r)) = 1; % Put 1 in sensor locations
 end
-subplot(122)
+
 h= plot(G);
-highlight(h,graph_highlight,'Nodecolor','r');
-%% Covex Relaxation Code
+highlight(h,graph_highlight,'Nodecolor','m');
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%  Convex Relaxation
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 Uk_UkH =  zeros(number_of_eigenvectors,number_of_eigenvectors^2);
 YUk_UkH =  zeros(number_of_eigenvectors,number_of_eigenvectors^2);
 UkH_YkH =  zeros(number_of_eigenvectors,number_of_eigenvectors*number_of_eigenvectors);
@@ -414,155 +344,41 @@ vm=vm(sensor_locations);
 c = sorted_y_dss*sorted_vcomplex;
 cm = abs(c);
 cm = cm(sensor_locations);
+% sm=[[-1.51209146623099e-08 - 1.90719194501292e-09i;2.85041180466347e-10 + 9.35740957754546e-10i;2.26786759257128e-10 + 5.49019775704897e-10i;5.24547221896161e-10 + 1.66982730246468e-10i;-135005.668361517 - 70002.9377773637i;1.11364915564335e-08 - 7.22335904997153e-09i;0.00000000000000 + 0.00000000000000i;-1.32787564049706e-10 - 3.26078351575270e-09i;-1.11463068925320e-08 + 7.64388846735622e-09i;-4000.13460008112 - 2000.06735441264i;-6.36916630038654e-09 + 3.51610598723321e-09i;-7000.27101224208 - 3000.11627216666i;4.95351020874803e-09 + 7.56775520060163e-09i;-3.77981503411071e-10 + 7.26817101310248e-10i]];
+% vm=[[14692.7496557196;2401.85360850594;2410.25952257997;2402.36008615436;14309.3697008348;14594.8876994888;14797.4489539050;14352.9637564590;14860.4676277727;14334.5142677603;14309.4457220022;14435.8221791713;14465.2350583858;14411.9963536289]];
+% cm=[[1.03729505502171e-12;4.07265459343990e-13;2.46453107625765e-13;2.29143147075165e-13;10.6276831796128;9.09494701772928e-13;0;2.27373675443232e-13;9.09494701772928e-13;0.311994280604239;5.08422994585042e-13;0.527581173607032;6.25277607468888e-13;5.68434188608080e-14]];
+
+
+fprintf("Starting optimization")
+
 cvx_clear
 cvx_solver SeDuMi
 cvx_precision low
 cvx_begin
 
-variable tildeW(number_of_eigenvectors,number_of_eigenvectors) complex semidefinite
-variable s_est(nb) complex
-variable v_est(nb)
-variable a_est(nb)
-minimize (5*norm(sm - M*s_est, 2) + 55*norm(vm.*vm-M*(v_est),2) + 5*norm(cm.*cm-M*a_est,2) )
-
-subject to
-
-%     tildeW == tildeW';
-%     s_est == conj(diag(Y_DD*U_k*tildeW*U_k'));
-%     v_est == diag(U_k*tildeW*(U_k)');
-    for k = 1:nb
-        v_est(k) == Uk_UkH(k,:)*vec(transpose(tildeW));
-        s_est(k) == conj( YUk_UkH(k,:)*vec(transpose(tildeW)) );
-        a_est(k) == UkH_YkH(k,:)*vec(transpose(tildeW)); 
-    end
-%     0 <= sum(real(s_est)) <=2e+05;
-%     0 <= sum(imag(s_est)) <=5e+05;
-%     a_est == diag(Y_DD*U_k*tildeW*U_k'*Y_DD');
-    U_k(bus_name_loc(slack_bus_name),:)*(tildeW*U_k(bus_name_loc(slack_bus_name),:)') == sorted_vcomplex(bus_name_loc(slack_bus_name))*sorted_vcomplex(bus_name_loc(slack_bus_name))';
+    variable tildeW(number_of_eigenvectors,number_of_eigenvectors) complex semidefinite
+    variable s_est(nb) complex
+    variable v_est(nb)
+    variable a_est(nb)
+    minimize (5*norm(sm - M*s_est, 2) + 55*norm(vm.*vm-M*(v_est),2) + 5*norm(cm.*cm-M*a_est,2) )
+    
+    subject to
+    
+    %     tildeW == tildeW';
+    %     s_est == conj(diag(Y_DD*U_k*tildeW*U_k'));
+    %     v_est == diag(U_k*tildeW*(U_k)');
+        for k = 1:nb
+            v_est(k) == Uk_UkH(k,:)*vec(transpose(tildeW));
+            s_est(k) == conj( YUk_UkH(k,:)*vec(transpose(tildeW)) );
+            a_est(k) == UkH_YkH(k,:)*vec(transpose(tildeW)); 
+        end
+    %     0 <= sum(real(s_est)) <=2e+05;
+    %     0 <= sum(imag(s_est)) <=5e+05;
+    %     a_est == diag(Y_DD*U_k*tildeW*U_k'*Y_DD');
+        U_k(bus_name_loc(slack_bus_name),:)*(tildeW*U_k(bus_name_loc(slack_bus_name),:)') == sorted_vcomplex(bus_name_loc(slack_bus_name))*sorted_vcomplex(bus_name_loc(slack_bus_name))';
 cvx_end
 W = U_k * tildeW *(U_k)';
 
 
 
-%% Voltage Reconstruction from W
-if strcmpi('solved',cvx_status)
-    
-    all_voltage = zeros(size(sorted_vcomplex));
-    all_voltage(bus_name_loc(slack_bus_name),1) = sorted_vcomplex(bus_name_loc(slack_bus_name));
-    for node = 2:length(rmap)
-        to = node;
-        from = predecessors(G,to);
-        to = (find(nmap==to));
-        testind = cellfun(@(x)isequal(x,to),values(inner_map));
-        to_msg_key = upper(testkeys(testind));
-        to= find(strcmpi(unique_bus_names,to_msg_key));
-        
-        from = (find(nmap==from));
-        testind = cellfun(@(x)isequal(x,from),values(inner_map));
-        from_msg_key = upper(testkeys(testind));
-        
-        from= find(strcmpi(unique_bus_names,from_msg_key));
-        source_voltage = all_voltage(bus_name_loc(from_msg_key{1}),1);
-        from_phases = bus_info(from).nodes';
-        s_v = zeros(3,1);
-        s_v(from_phases) = source_voltage;
-        to_phases = bus_info(to).nodes';
-        source_voltage = s_v(to_phases,1);
-        ph_ff = zeros(3,1);
-        ph_f = bus_name_loc(from_msg_key{1});
-        ph_ff(from_phases) = ph_f;
-        Wph = W(bus_name_loc(to_msg_key{1}),ph_ff(to_phases));
-        all_voltage(bus_name_loc(to_msg_key{1}),1) = transpose(1/trace(source_voltage*source_voltage')*Wph*source_voltage);
-        
-    end
-    
-    figure(6)
-    subplot(211)
-    plot(abs(all_voltage(1:end)),'linewidth',1.5);
-    hold on
-    plot(abs(sorted_vcomplex(1:end)),'linewidth',1.5);
-    diff = abs(sorted_vcomplex)-abs(all_voltage);
-    legend('Estimated','Actual');
-    fprintf('Difference in Voltage Magnitude Estimation:%f\n',max(abs(diff)));
-    
-    subplot(212)
-    plot(angle(all_voltage(1:end)),'linewidth',1.5);
-    
-    hold on
-    plot(angle(sorted_vcomplex(1:end)),'linewidth',1.5);
-    diff = angle(sorted_vcomplex)-angle(all_voltage);
-    legend('Estimated','Actual');
-    fprintf('Difference in Voltage Angle Estimation:%f\n',max(abs(diff)));
-    fprintf('Number of Sensors:%d\n',length(bus_name_sensor));
-    
-    
-    [phase_a_buses_loc,~,phase_a_buses_values] = find(phase_distribution(:,1));
-    [phase_b_buses_loc,~,phase_b_buses_values] = find(phase_distribution(:,2));
-    [phase_c_buses_loc,~,phase_c_buses_values] = find(phase_distribution(:,3));
-    
-    abs_sorted_vcomplex = abs(sorted_vcomplex);
-    abs_vcon = abs(all_voltage);
-    phase_a_actual =  abs_sorted_vcomplex(phase_a_buses_values)./base_voltage(phase_a_buses_loc) ;
-    phase_a_vcon =  abs_vcon(phase_a_buses_values)./base_voltage(phase_a_buses_loc) ;
-    phase_b_actual =  abs_sorted_vcomplex(phase_b_buses_values)./base_voltage(phase_b_buses_loc) ;
-    phase_b_vcon =  abs_vcon(phase_b_buses_values)./base_voltage(phase_b_buses_loc) ;
-    phase_c_actual =  abs_sorted_vcomplex(phase_c_buses_values)./base_voltage(phase_c_buses_loc) ;
-    phase_c_vcon =  abs_vcon(phase_c_buses_values)./base_voltage(phase_c_buses_loc) ;
-    
-    angle_sorted_vcomplex = angle(sorted_vcomplex);
-    angle_vcon = angle(all_voltage);
-    phase_a_actual_angle =  angle_sorted_vcomplex(phase_a_buses_values)./base_voltage(phase_a_buses_loc) ;
-    phase_a_vcon_angle =  angle_vcon(phase_a_buses_values)./base_voltage(phase_a_buses_loc) ;
-    phase_b_actual_angle =  angle_sorted_vcomplex(phase_b_buses_values)./base_voltage(phase_b_buses_loc) ;
-    phase_b_vcon_angle =  angle_vcon(phase_b_buses_values)./base_voltage(phase_b_buses_loc) ;
-    phase_c_actual_angle =  angle_sorted_vcomplex(phase_c_buses_values)./base_voltage(phase_c_buses_loc) ;
-    phase_c_vcon_angle =  angle_vcon(phase_c_buses_values)./base_voltage(phase_c_buses_loc) ;
-    
-    
-    
-    figure(8)
-    subplot(311)
-    plot(phase_a_actual,'linewidth',1.5)
-    hold on
-    plot(phase_a_vcon,'linewidth',1.5)
-    subplot(312)
-    plot(phase_b_actual,'linewidth',1.5)
-    hold on
-    plot(phase_b_vcon,'linewidth',1.5)
-    subplot(313)
-    plot(phase_c_actual,'linewidth',1.5)
-    hold on
-    plot(phase_c_vcon,'linewidth',1.5)
-    legend('Estimated','Actual');
-    
-    
-    figure(9)
-    subplot(311)
-    plot(phase_a_actual_angle,'linewidth',1.5)
-    hold on
-    plot(phase_a_vcon_angle,'linewidth',1.5)
-    subplot(312)
-    plot(phase_b_actual_angle,'linewidth',1.5)
-    hold on
-    plot(phase_b_vcon_angle,'linewidth',1.5)
-    subplot(313)
-    plot(phase_c_actual_angle,'linewidth',1.5)
-    hold on
-    plot(phase_c_vcon_angle,'linewidth',1.5)
-    legend('Estimated','Actual');
-    
-    
-else
-    fprintf('CVX_STATUES:%s\n',cvx_status);
-    fprintf('Number of Sensors:%d\n',length(bus_name_sensor));
-end
-
-csvwrite('phase_a_mag_low.csv',[transpose(1:length(phase_a_actual)) phase_a_actual phase_a_vcon])
-csvwrite('phase_b_mag_low.csv',[transpose(1:length(phase_b_actual)) phase_b_actual phase_b_vcon])
-csvwrite('phase_c_mag_low.csv',[transpose(1:length(phase_c_actual)) phase_c_actual phase_c_vcon])
-
-
-csvwrite('phase_a_angle_low.csv',[transpose(1:length(phase_a_actual_angle)) phase_a_actual_angle phase_a_vcon_angle])
-csvwrite('phase_b_angle_low.csv',[transpose(1:length(phase_b_actual_angle)) phase_b_actual_angle phase_b_vcon_angle])
-csvwrite('phase_c_angle_low.csv',[transpose(1:length(phase_c_actual_angle)) phase_c_actual_angle phase_c_vcon_angle])
 
