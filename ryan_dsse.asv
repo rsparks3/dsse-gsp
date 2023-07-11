@@ -24,9 +24,9 @@ close all;
 
 % Adjustable Variables
 ncluster = 1;
-eigenvectors_reduction = 7;  % must be less  than number of buses and over half the number of buses (?)
+eigenvectors_reduction = 6;  % must be less  than number of buses
 sensors_per_cluster = 3;
-BusSize = 13; % must correspond with IEEE test bus case
+BusSize = 13;
 
 
 % not adjustable variables

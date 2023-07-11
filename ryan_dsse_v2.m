@@ -25,7 +25,7 @@ close all;
 % Adjustable Variables
 ncluster = 1;
 eigenvectors_reduction = 7;  % must be less  than number of buses and over half the number of buses (?)
-sensors_per_cluster = 3;
+sensors_per_cluster = 5;
 BusSize = 13; % must correspond with IEEE test bus case
 
 
@@ -123,6 +123,12 @@ to_bus_nodes = [];
 lines = getLineInfo(DSSCircObj);
 transformers = getTransformerInfo(DSSCircObj);
 bus_names = cell(length(lines)*2 + length(transformers)*2,1);
+
+% added by ryan for experimentation
+% for i = 1:length(unique_bus_names)
+%     bus_name_loc(unique_bus_names{i})=find(strcmpi(bus_names,unique_bus_names{i}));
+% end
+
 counter = 1;
 for i = 1:length(lines)
     name= split(lines(i).bus1,'.');
@@ -300,7 +306,9 @@ for ii = 1:ncluster
     M_s_y = [];
     for k = 1:length(M_s)
         sensor_placed_map = bus_name_loc(unique_bus_names{M_s(k)});
+        disp(unique_bus_names{M_s(k)})
         M_s_y = [M_s_y  sensor_placed_map'];
+        
     end
     M_ss = [M_ss; M_s];
     M_s_y_s = [M_s_y_s M_s_y];
@@ -313,6 +321,7 @@ sensor_locations = M_s_y_s;
 graph_highlight = zeros(1,length(bus_name_sensor));
 for i = 1:length(graph_highlight)
     name = bus_name_sensor(i);
+    disp(name)
     graph_highlight(1,i) = nmap(inner_map(upper(name{1})));
 end
 
